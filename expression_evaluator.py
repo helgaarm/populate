@@ -54,10 +54,13 @@ class ExpressionEvaluator:
             if len(value) == 1:
                 value = value[0]
 
-        if expression.startswith("Patient/name") and isinstance(value, dict):
+        if self._is_patient_name_expression(expression) and isinstance(value, dict):
             return self._format_human_name(value)
 
         return value
+
+    def _is_patient_name_expression(self, expression: str) -> bool:
+        return expression in {"Patient/name", "Patient.name"}
 
     def _format_human_name(self, name: Dict[str, Any]) -> Optional[str]:
         if not isinstance(name, dict):

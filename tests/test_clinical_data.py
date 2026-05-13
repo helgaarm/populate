@@ -51,6 +51,15 @@ def test_expression_evaluator_patient_name():
     assert result == "Alice Smith"
 
 
+def test_expression_evaluator_patient_name_dot_path():
+    """Test evaluating Patient.name expression."""
+    data = MockPatientData()
+    evaluator = create_evaluator(data)
+    context = {"subject": {"reference": "Patient/123"}}
+    result = evaluator.evaluate("Patient.name", context)
+    assert result == "Alice Smith"
+
+
 def test_expression_evaluator_patient_name_family_dot_path():
     """Test evaluating Patient.name.family expression."""
     data = MockPatientData()

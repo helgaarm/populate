@@ -79,7 +79,7 @@ curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/123
         "linkId": "name",
         "type": "string",
         "text": "Patient name",
-        "initialExpression": "Patient/name"
+        "initialExpression": "Patient.name"
       }
     ]
   }'
@@ -104,7 +104,7 @@ curl -X POST http://localhost:8000/Questionnaire/\$populate \
               "linkId": "name",
               "type": "string",
               "text": "Patient name",
-              "initialExpression": "Patient/name"
+              "initialExpression": "Patient.name"
             }
           ]
         }
@@ -131,13 +131,116 @@ curl -X POST http://localhost:8000/Questionnaire/\$populate \
 
 `sourceUrl` takes precedence over `source`. If `source` is `remote`, `ehr`, or `fhir`, the app uses `REMOTE_FHIR_BASE_URL` when that environment variable is configured. Otherwise it falls back to mock data.
 
+## External FHIR server example
+
+The populate endpoint can read Patient data from an external FHIR server by passing `sourceUrl`. For example, this HAPI FHIR Patient is available at:
+
+```bash
+curl https://hapi.fhir.org/baseR4/Patient/90288480
+```
+
+### Source passed in query string
+
+Use this request to populate a Questionnaire from that external Patient:
+
+```bash
+curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/90288480&sourceUrl=https://hapi.fhir.org/baseR4" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceType": "Questionnaire",
+    "id": "external-patient-demographics",
+    "status": "draft",
+    "subjectType": ["Patient"],
+    "item": [
+      {
+        "linkId": "patient-name",
+        "text": "Patient name",
+        "type": "string",
+        "initialExpression": "Patient.name"
+      },
+      {
+        "linkId": "patient-birthdate",
+        "text": "Birth date",
+        "type": "date",
+        "initialExpression": "Patient.birthDate"
+      },
+      {
+        "linkId": "patient-gender",
+        "text": "Gender",
+        "type": "string",
+        "initialExpression": "Patient.gender"
+      }
+    ]
+  }'
+```
+
+With the current HAPI resource, the populated answers should include:
+
+- `patient-name` - `Nuñez Karla`
+- `patient-birthdate` - `1980-01-02`
+- `patient-gender` - `female`
+
+### Source passed in the Parameters body
+
+The same source can also be passed inside a standard FHIR `Parameters` body:
+
+```bash
+curl -X POST http://localhost:8000/Questionnaire/\$populate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "questionnaire",
+        "resource": {
+          "resourceType": "Questionnaire",
+          "id": "external-patient-demographics",
+          "status": "draft",
+          "subjectType": ["Patient"],
+          "item": [
+            {
+              "linkId": "patient-name",
+              "text": "Patient name",
+              "type": "string",
+              "initialExpression": "Patient.name"
+            },
+            {
+              "linkId": "patient-birthdate",
+              "text": "Birth date",
+              "type": "date",
+              "initialExpression": "Patient.birthDate"
+            },
+            {
+              "linkId": "patient-gender",
+              "text": "Gender",
+              "type": "string",
+              "initialExpression": "Patient.gender"
+            }
+          ]
+        }
+      },
+      {
+        "name": "subject",
+        "valueReference": { "reference": "Patient/90288480" }
+      },
+      {
+        "name": "sourceUrl",
+        "valueString": "https://hapi.fhir.org/baseR4"
+      }
+    ]
+  }'
+```
+
 ## Expression evaluation
 
 The service supports FHIRPath-like expressions through item-level `initialExpression` fields and FHIR SDC `variable` extensions. Supported patterns include:
 
 - `Patient/name`
+- `Patient.name`
 - `Patient/birthDate`
+- `Patient.birthDate`
 - `Patient/gender`
+- `Patient.gender`
 - `Observation(code).value`
 - `%variableName.entry.first().resource.value`
 - SDC variable definitions using `Observation?patient=...&code=...`
