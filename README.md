@@ -36,6 +36,56 @@ python -m uvicorn app:app --reload
 
 The API runs on `http://localhost:8000` by default. Swagger UI is available at `http://localhost:8000/docs`.
 
+## Using Swagger
+For using Swagger copy Questionnaire into the body and add parameters or copy Fhir Parameter resource into the body with included parameters
+
+example - populating Questionnaire from an external source:
+```
+   {
+    "resourceType": "Parameters",
+    "parameter": [
+      {
+        "name": "questionnaire",
+        "resource": {
+          "resourceType": "Questionnaire",
+          "id": "external-patient-demographics",
+          "status": "draft",
+          "subjectType": ["Patient"],
+          "item": [
+            {
+              "linkId": "patient-name",
+              "text": "Patient name",
+              "type": "string",
+              "initialExpression": "Patient.name"
+            },
+            {
+              "linkId": "patient-birthdate",
+              "text": "Birth date",
+              "type": "date",
+              "initialExpression": "Patient.birthDate"
+            },
+            {
+              "linkId": "patient-gender",
+              "text": "Gender",
+              "type": "string",
+              "initialExpression": "Patient.gender"
+            }
+          ]
+        }
+      },
+      {
+        "name": "subject",
+        "valueReference": { "reference": "Patient/90288480" }
+      },
+      {
+        "name": "sourceUrl",
+        "valueString": "https://hapi.fhir.org/baseR4"
+      }
+    ]
+  }
+```
+
+
 ## Populate endpoints
 
 - `POST /Questionnaire/$populate`
