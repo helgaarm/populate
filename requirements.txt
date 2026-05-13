@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+fhir.resources
+fhirpathpy
+httpx
+black
+flake8
+pytest
+openai-agents

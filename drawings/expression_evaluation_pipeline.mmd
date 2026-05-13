@@ -1,0 +1,41 @@
+flowchart LR
+    Questionnaire["Questionnaire resource"] --> Variables["Extract SDC variable extensions<br/>name -> expression"]
+    Questionnaire --> InitialExpressions["Extract item initialExpression<br/>linkId -> expression"]
+
+    Variables --> Service["PopulateService.build_questionnaire_response"]
+    InitialExpressions --> Service
+    Parameters["subject, encounter, context,<br/>and extra parameters"] --> EvalContext["Evaluation context"]
+    Service --> EvalContext
+
+    EvalContext --> ItemLoop["Walk Questionnaire.item tree"]
+    InitialExpressions --> ItemLoop
+    ItemLoop --> HasInitial{"item has initial?"}
+    HasInitial -->|"yes"| UseInitial["Use existing initial answer"]
+    HasInitial -->|"no"| HasExpression{"linkId has initialExpression?"}
+    HasExpression -->|"no and primitive type"| EmptyAnswer["Return empty answer list"]
+    HasExpression -->|"no and non-primitive type"| NoAnswer["No answer field"]
+    HasExpression -->|"yes"| Evaluator["ExpressionEvaluator.evaluate"]
+
+    Evaluator --> Resolver["FhirVariableResolver.resolve_expression"]
+    Resolver --> Kind{"Expression kind"}
+    Kind -->|"Patient/name, Patient.birthDate, etc."| PatientLookup["Load Patient from selected FHIR source"]
+    Kind -->|"Observation(code).path"| ObservationLookup["Load latest Observation by patient and code"]
+    Kind -->|"%variable.path"| VariableLookup["Resolve variable definition, then append variable path"]
+    Kind -->|"unsupported or unresolved"| NullResult["null"]
+
+    PatientLookup --> FhirPath["fhirpathpy.evaluate(resource, path)"]
+    ObservationLookup --> FhirPath
+    VariableLookup --> VariableDefinition{"Variable definition type"}
+    VariableDefinition -->|"Observation?patient=...&code=..."| ObservationQuery["Resolve Observation query to Bundle-like entry"]
+    VariableDefinition -->|"Patient or Observation expression"| Resolver
+    VariableDefinition -->|"literal value"| Normalize
+    ObservationQuery --> FhirPath
+
+    FhirPath --> Normalize["Normalize result<br/>empty list -> null<br/>single item -> value<br/>Patient/name -> display string"]
+    NullResult --> NullAnswer["Expression evaluated to null answer string"]
+    Normalize --> AnswerType["Convert value to FHIR answer type"]
+    AnswerType --> BuildItem["QuestionnaireResponse.item.answer"]
+    UseInitial --> BuildItem
+    EmptyAnswer --> BuildItem
+    NoAnswer --> BuildResponse["Assemble nested QuestionnaireResponse"]
+    BuildItem --> BuildResponse

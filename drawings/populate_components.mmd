@@ -1,0 +1,47 @@
+flowchart LR
+    subgraph EntryPoints["Entry points"]
+        Api["app.py<br/>FastAPI routes"]
+        Agent["agent.py<br/>OpenAI Agents SDK"]
+    end
+
+    subgraph PopulateCore["Populate core"]
+        Service["populate_service.py<br/>PopulateService"]
+        Evaluator["expression_evaluator.py<br/>ExpressionEvaluator"]
+        Resolver["fhir_variable_resolver.py<br/>FhirVariableResolver"]
+    end
+
+    subgraph DataAccess["FHIR data access"]
+        Router["fhir_data_source.py<br/>DataSourceRouter"]
+        Protocol["FhirDataSource protocol"]
+        MockSource["MockFhirDataSource"]
+        RemoteSource["RemoteFhirDataSource"]
+        MockData["clinical_data.py<br/>MockPatientData"]
+        ExternalFhir["External FHIR server"]
+    end
+
+    subgraph FhirModels["FHIR models and libraries"]
+        Questionnaire["fhir.resources.Questionnaire"]
+        Parameters["fhir.resources.Parameters"]
+        QuestionnaireResponse["fhir.resources.QuestionnaireResponse"]
+        FhirPath["fhirpathpy.evaluate"]
+    end
+
+    Api -->|"POST /Questionnaire/$populate"| Service
+    Api -->|"query params"| Router
+    Agent -->|"populate_questionnaire tool"| Service
+
+    Service -->|"extract questionnaire parameter"| Parameters
+    Service -->|"validate sanitized resource"| Questionnaire
+    Service -->|"build response"| QuestionnaireResponse
+    Service -->|"initialExpression values"| Evaluator
+    Service -->|"SDC variable definitions"| Evaluator
+
+    Router -->|"select implementation"| Protocol
+    Protocol --> MockSource
+    Protocol --> RemoteSource
+    MockSource --> MockData
+    RemoteSource --> ExternalFhir
+
+    Evaluator --> Resolver
+    Evaluator --> FhirPath
+    Resolver -->|"Patient and Observation lookups"| Protocol

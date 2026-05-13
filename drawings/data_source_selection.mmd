@@ -1,0 +1,35 @@
+flowchart TD
+    Start["Populate request received"] --> ExtractParams["Extract body parameters"]
+    Start --> ReadQuery["Read HTTP query parameters"]
+    ExtractParams --> FindHint["Find source hint"]
+    ReadQuery --> FindHint
+
+    FindHint --> HasBodySourceUrl{"parameters.sourceUrl present?"}
+    HasBodySourceUrl -->|"yes"| UseBodySourceUrl["source hint = parameters.sourceUrl"]
+    HasBodySourceUrl -->|"no"| HasQuerySourceUrl{"query sourceUrl present?"}
+    HasQuerySourceUrl -->|"yes"| UseQuerySourceUrl["source hint = query sourceUrl"]
+    HasQuerySourceUrl -->|"no"| HasBodySource{"parameters.source present?"}
+    HasBodySource -->|"yes"| UseBodySource["source hint = parameters.source"]
+    HasBodySource -->|"no"| HasQuerySource{"query source present?"}
+    HasQuerySource -->|"yes"| UseQuerySource["source hint = query source"]
+    HasQuerySource -->|"no"| NoHint["no source hint"]
+
+    UseBodySourceUrl --> Normalize["Trim and normalize hint"]
+    UseQuerySourceUrl --> Normalize
+    UseBodySource --> Normalize
+    UseQuerySource --> Normalize
+
+    NoHint --> DefaultSource["Use default source<br/>MockFhirDataSource"]
+    Normalize --> LocalHint{"hint is mock or local?"}
+    LocalHint -->|"yes"| DefaultSource
+    LocalHint -->|"no"| RemoteAlias{"hint is remote, ehr, or fhir?"}
+    RemoteAlias -->|"yes and default_remote_url configured"| DefaultRemote["RemoteFhirDataSource(default_remote_url)"]
+    RemoteAlias -->|"yes but no default_remote_url"| DefaultSource
+    RemoteAlias -->|"no"| UrlHint{"hint starts with http:// or https://?"}
+    UrlHint -->|"yes"| UrlRemote["RemoteFhirDataSource(source hint URL)"]
+    UrlHint -->|"no"| DefaultSource
+
+    DefaultSource --> Evaluator["ExpressionEvaluator uses selected source"]
+    DefaultRemote --> Evaluator
+    UrlRemote --> Evaluator
+    Evaluator --> Response["QuestionnaireResponse population"]

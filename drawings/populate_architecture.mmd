@@ -1,0 +1,51 @@
+flowchart LR
+    Client["Client or Swagger UI"] --> Api["FastAPI app.py"]
+    Api --> Root["GET /"]
+    Api --> Populate["POST /Questionnaire/$populate<br/>POST /fhir/Questionnaire/$populate"]
+
+    Populate --> ExtractQuestionnaire["PopulateService.get_questionnaire_resource"]
+    ExtractQuestionnaire --> ExtractVariables["Extract SDC variable extensions"]
+    ExtractQuestionnaire --> ExtractExpressions["Extract item initialExpression values"]
+    ExtractQuestionnaire --> Sanitize["Sanitize Questionnaire items"]
+    Sanitize --> ValidateQuestionnaire["Validate with fhir.resources.Questionnaire"]
+
+    Populate --> ExtractParams["PopulateService.extract_parameters"]
+    ExtractParams --> MergeQuery["Merge subject, encounter, and query parameters"]
+
+    MergeQuery --> Router["DataSourceRouter.select_source"]
+    Router --> SourceChoice{"source or sourceUrl?"}
+    SourceChoice -->|"mock, local, or absent"| MockSource["MockFhirDataSource"]
+    SourceChoice -->|"remote, ehr, fhir, or URL"| RemoteSource["RemoteFhirDataSource"]
+
+    MockSource --> MockData["MockPatientData<br/>clinical_data.py"]
+    RemoteSource --> FhirServer["External FHIR server<br/>Patient and Observation resources"]
+
+    ValidateQuestionnaire --> BuildResponse["PopulateService.build_questionnaire_response"]
+    MergeQuery --> BuildResponse
+    ExtractVariables --> Evaluator["ExpressionEvaluator"]
+    ExtractExpressions --> BuildResponse
+    Router --> Evaluator
+
+    Evaluator --> Resolver["FhirVariableResolver"]
+    Resolver --> PatientExpr["Resolve Patient/name,<br/>Patient/birthDate, Patient/gender"]
+    Resolver --> ObservationExpr["Resolve Observation(code).path"]
+    Resolver --> VariableExpr["Resolve %variable.path<br/>and Observation?patient=...&code=..."]
+
+    PatientExpr --> DataSource["Selected FHIR data source"]
+    ObservationExpr --> DataSource
+    VariableExpr --> DataSource
+    DataSource --> MockSource
+    DataSource --> RemoteSource
+
+    Evaluator --> FhirPath["fhirpathpy.evaluate"]
+    FhirPath --> NormalizedValue["Normalize expression result"]
+    NormalizedValue --> BuildItems["Build QuestionnaireResponse.item answers"]
+    BuildResponse --> BuildItems
+    BuildItems --> Response["FHIR QuestionnaireResponse JSON"]
+    Response --> Client
+
+    Agent["agent.py<br/>OpenAI Agents SDK tools"] --> AgentPopulate["populate_questionnaire tool"]
+    AgentPopulate --> ExtractQuestionnaire
+    AgentPopulate --> ExtractParams
+    AgentPopulate --> MockSource
+    AgentPopulate --> BuildResponse

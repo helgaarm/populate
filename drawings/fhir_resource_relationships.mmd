@@ -1,0 +1,82 @@
+erDiagram
+    QUESTIONNAIRE ||--o{ QUESTIONNAIRE_ITEM : contains
+    QUESTIONNAIRE ||--o{ SDC_VARIABLE_EXTENSION : defines
+    QUESTIONNAIRE_ITEM ||--o{ INITIAL_EXPRESSION_EXTENSION : may_have
+    QUESTIONNAIRE ||--|| QUESTIONNAIRE_RESPONSE : populates
+    QUESTIONNAIRE_RESPONSE ||--o{ QUESTIONNAIRE_RESPONSE_ITEM : contains
+    QUESTIONNAIRE_ITEM ||--o| QUESTIONNAIRE_RESPONSE_ITEM : maps_by_linkId
+
+    QUESTIONNAIRE_RESPONSE }o--o| PATIENT : subject
+    QUESTIONNAIRE_RESPONSE }o--o| ENCOUNTER : encounter
+    INITIAL_EXPRESSION_EXTENSION }o--o| PATIENT : may_read
+    INITIAL_EXPRESSION_EXTENSION }o--o{ OBSERVATION : may_read
+    SDC_VARIABLE_EXTENSION }o--o| PATIENT : may_reference
+    SDC_VARIABLE_EXTENSION }o--o{ OBSERVATION : may_query
+    OBSERVATION }o--|| PATIENT : belongs_to
+
+    QUESTIONNAIRE {
+        string resourceType
+        string id
+        string status
+        list item
+        list extension
+    }
+
+    QUESTIONNAIRE_ITEM {
+        string linkId
+        string text
+        string type
+        list initial
+        list extension
+        list item
+    }
+
+    SDC_VARIABLE_EXTENSION {
+        string url
+        string valueExpression_name
+        string valueExpression_expression
+    }
+
+    INITIAL_EXPRESSION_EXTENSION {
+        string url
+        string valueExpression_expression
+    }
+
+    QUESTIONNAIRE_RESPONSE {
+        string resourceType
+        string id
+        string status
+        string questionnaire
+        dateTime authored
+        Reference subject
+        Reference encounter
+    }
+
+    QUESTIONNAIRE_RESPONSE_ITEM {
+        string linkId
+        string text
+        list answer
+        list item
+    }
+
+    PATIENT {
+        string resourceType
+        string id
+        HumanName name
+        date birthDate
+        code gender
+    }
+
+    OBSERVATION {
+        string resourceType
+        string id
+        Reference subject
+        CodeableConcept code
+        dateTime effectiveDateTime
+        Quantity valueQuantity
+    }
+
+    ENCOUNTER {
+        string resourceType
+        string id
+    }
