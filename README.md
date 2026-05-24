@@ -129,19 +129,141 @@ curl -X POST http://localhost:8000/Questionnaire/\$populate \
 - `source` - optional data source selector. Supported values: `mock`, `local`, `remote`, `ehr`, or `fhir`.
 - `sourceUrl` - optional remote FHIR base URL. May be passed in the body parameters or query string.
 
-`sourceUrl` takes precedence over `source`. If `source` is `remote`, `ehr`, or `fhir`, the app uses `REMOTE_FHIR_BASE_URL` when that environment variable is configured. Otherwise it falls back to mock data.
+Data source selection uses this priority order:
+1. Data endpoints extension in the questionnaire (recommended)
+2. `sourceUrl` parameter or query param
+3. `source` parameter or query param
+4. `REMOTE_FHIR_BASE_URL` environment variable
+5. Mock data source (default)
 
-## External FHIR server example
+### Data source as questionnaire extension (recommended)
 
-The populate endpoint can read Patient data from an external FHIR server by passing `sourceUrl`. For example, this HAPI FHIR Patient is available at:
+The recommended approach is to define the data source endpoint as an extension within the questionnaire resource. This keeps the data source configuration alongside the questionnaire definition:
+
+```bash
+curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceType": "Questionnaire",
+    "id": "patient-demographics",
+    "status": "draft",
+    "extension": [
+      {
+        "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
+        "extension": [
+          {
+            "url": "fhir",
+            "valueUrl": "https://hapi.fhir.org/baseR4"
+          }
+        ]
+      }
+    ],
+    "item": [
+      {
+        "linkId": "patient-name",
+        "text": "Patient name",
+        "type": "string",
+        "initialExpression": "Patient.name"
+      },
+      {
+        "linkId": "patient-birthdate",
+        "text": "Birth date",
+        "type": "date",
+        "initialExpression": "Patient.birthDate"
+      }
+    ]
+  }'
+```
+
+The `subject` query parameter is required when expressions like `Patient.name` need to be evaluated. See [Subject in query parameters](#subject-in-query-parameters) for more details on passing the subject.
+
+The data endpoints extension structure supports multiple endpoints:
+
+```json
+"extension": [
+  {
+    "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
+    "extension": [
+      {
+        "url": "primaryObservation",
+        "valueUrl": "https://api.example.no/fhir/dhg/primary-observation"
+      },
+      {
+        "url": "secondaryObservation",
+        "valueUrl": "https://api.example.no/fhir/dhg/secondary-observation"
+      }
+    ]
+  }
+]
+```
+
+The service uses the first `valueUrl` found in the nested extensions. All endpoints must return a FHIR-compliant response.
+
+## External FHIR server examples
+
+The populate endpoint can read Patient data from an external FHIR server. For example, this HAPI FHIR Patient is available at:
 
 ```bash
 curl https://hapi.fhir.org/baseR4/Patient/90288480
 ```
 
-### Source passed in query string
+> ✅ Verified: the examples in this section were tested against the app and returned the expected populated values.
 
-Use this request to populate a Questionnaire from that external Patient:
+### Recommended: Source as questionnaire extension
+
+Use the data endpoints extension (recommended approach) to specify the external FHIR server:
+
+```bash
+curl -X POST http://localhost:8000/Questionnaire/\$populate?subject=Patient/90288480 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resourceType": "Questionnaire",
+    "id": "external-patient-demographics",
+    "status": "draft",
+    "subjectType": ["Patient"],
+    "extension": [
+      {
+        "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
+        "extension": [
+          {
+            "url": "fhir",
+            "valueUrl": "https://hapi.fhir.org/baseR4"
+          }
+        ]
+      }
+    ],
+    "item": [
+      {
+        "linkId": "patient-name",
+        "text": "Patient name",
+        "type": "string",
+        "initialExpression": "Patient.name"
+      },
+      {
+        "linkId": "patient-birthdate",
+        "text": "Birth date",
+        "type": "date",
+        "initialExpression": "Patient.birthDate"
+      },
+      {
+        "linkId": "patient-gender",
+        "text": "Gender",
+        "type": "string",
+        "initialExpression": "Patient.gender"
+      }
+    ]
+  }'
+```
+
+With the current HAPI resource, the populated answers should include:
+
+- `patient-name` - `Nuñez Karla`
+- `patient-birthdate` - `1980-01-02`
+- `patient-gender` - `female`
+
+### Alternative: Source passed in query string
+
+You can also pass the source URL as a query parameter:
 
 ```bash
 curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/90288480&sourceUrl=https://hapi.fhir.org/baseR4" \
@@ -174,15 +296,9 @@ curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/902
   }'
 ```
 
-With the current HAPI resource, the populated answers should include:
+### Alternative: Source passed in the Parameters body
 
-- `patient-name` - `Nuñez Karla`
-- `patient-birthdate` - `1980-01-02`
-- `patient-gender` - `female`
-
-### Source passed in the Parameters body
-
-The same source can also be passed inside a standard FHIR `Parameters` body:
+The source can also be passed inside a standard FHIR `Parameters` body (using the questionnaire extension):
 
 ```bash
 curl -X POST http://localhost:8000/Questionnaire/\$populate \
@@ -197,6 +313,17 @@ curl -X POST http://localhost:8000/Questionnaire/\$populate \
           "id": "external-patient-demographics",
           "status": "draft",
           "subjectType": ["Patient"],
+          "extension": [
+            {
+              "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
+              "extension": [
+                {
+                  "url": "fhir",
+                  "valueUrl": "https://hapi.fhir.org/baseR4"
+                }
+              ]
+            }
+          ],
           "item": [
             {
               "linkId": "patient-name",
@@ -222,10 +349,6 @@ curl -X POST http://localhost:8000/Questionnaire/\$populate \
       {
         "name": "subject",
         "valueReference": { "reference": "Patient/90288480" }
-      },
-      {
-        "name": "sourceUrl",
-        "valueString": "https://hapi.fhir.org/baseR4"
       }
     ]
   }'

@@ -146,8 +146,22 @@ class DataSourceRouter:
         self.default_source = default_source
         self.default_remote_url = default_remote_url
 
-    def select_source(self, parameters: Dict[str, Any], query_params: Mapping[str, str]) -> FhirDataSource:
-        source_hint = self._get_source_hint(parameters, query_params)
+    def select_source(
+        self,
+        parameters: Dict[str, Any],
+        query_params: Mapping[str, str],
+        questionnaire_data: Optional[Dict[str, Any]] = None,
+    ) -> FhirDataSource:
+        """Select data source based on questionnaire extension, parameters, or query params.
+        
+        Priority order:
+        1. Data endpoints extension in questionnaire
+        2. sourceUrl parameter or query param
+        3. source parameter or query param (e.g., 'remote', 'mock')
+        4. REMOTE_FHIR_BASE_URL environment variable
+        5. Default source
+        """
+        source_hint = self._get_source_hint(parameters, query_params, questionnaire_data)
         if source_hint is None:
             return self.default_source
 
@@ -163,7 +177,28 @@ class DataSourceRouter:
 
         return self.default_source
 
-    def _get_source_hint(self, parameters: Dict[str, Any], query_params: Mapping[str, str]) -> Optional[str]:
+    def _get_source_hint(
+        self,
+        parameters: Dict[str, Any],
+        query_params: Mapping[str, str],
+        questionnaire_data: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """Get source hint from questionnaire, parameters, or query params.
+        
+        Checks in order:
+        1. Data endpoints extension in questionnaire
+        2. sourceUrl parameter
+        3. sourceUrl query param
+        4. source parameter
+        5. source query param
+        """
+        # Check questionnaire for data endpoints extension
+        if questionnaire_data:
+            from populate_service import PopulateService
+            endpoint_url = PopulateService.extract_data_endpoints(questionnaire_data)
+            if endpoint_url:
+                return endpoint_url
+
         source_hint = parameters.get("sourceUrl")
         if isinstance(source_hint, str) and source_hint.strip():
             return source_hint

@@ -57,6 +57,43 @@ class PopulateService:
         return variables
 
     @staticmethod
+    def extract_data_endpoints(questionnaire_data: Dict[str, Any]) -> Optional[str]:
+        """Extract data source endpoint URL from questionnaire extension.
+        
+        Looks for extensions with URL containing 'populate-data-endpoints' and returns
+        the first nested extension with a valueUrl or the first available endpoint URL.
+        
+        Example extension structure:
+        {
+            "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
+            "extension": [
+                {
+                    "url": "terminObservation",
+                    "valueUrl": "https://api.example.no/fhir/dhg/termin-observation"
+                }
+            ]
+        }
+        """
+        for extension in questionnaire_data.get("extension", []):
+            if not isinstance(extension, dict):
+                continue
+
+            url = extension.get("url", "")
+            if "populate-data-endpoints" not in url:
+                continue
+
+            # Look for nested extensions with valueUrl
+            nested_extensions = extension.get("extension", [])
+            if isinstance(nested_extensions, list):
+                for nested_ext in nested_extensions:
+                    if isinstance(nested_ext, dict):
+                        value_url = nested_ext.get("valueUrl")
+                        if isinstance(value_url, str) and value_url.strip():
+                            return value_url
+
+        return None
+
+    @staticmethod
     def extract_initial_expressions(items: List[Dict[str, Any]]) -> Dict[str, str]:
         expressions: Dict[str, str] = {}
         for item in items:

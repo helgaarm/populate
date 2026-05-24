@@ -72,6 +72,17 @@ async def populate_questionnaire(
         raise HTTPException(status_code=400, detail=str(exc))
 
     try:
+        # Extract questionnaire data for data source selection
+        questionnaire_data: Optional[Dict[str, Any]] = None
+        if payload.get("resourceType") == "Questionnaire":
+            questionnaire_data = payload
+        elif payload.get("resourceType") == "Parameters":
+            for parameter in payload.get("parameter", []):
+                if isinstance(parameter, dict) and parameter.get("name") == "questionnaire":
+                    if "resource" in parameter:
+                        questionnaire_data = parameter["resource"]
+                        break
+
         parameters = PopulateService.extract_parameters(payload)
 
         if not parameters.get("subject") and subject:
@@ -90,7 +101,7 @@ async def populate_questionnaire(
             default_source=MockFhirDataSource(mock_data),
             default_remote_url=default_remote_url,
         )
-        source = router.select_source(parameters, request.query_params)
+        source = router.select_source(parameters, request.query_params, questionnaire_data)
 
         evaluator = create_evaluator(source)
         evaluator.set_variables(variables)
