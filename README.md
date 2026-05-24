@@ -42,44 +42,32 @@ For using Swagger copy Questionnaire into the body and add parameters or copy Fh
 example - populating Questionnaire from an external source:
 ```
    {
-    "resourceType": "Parameters",
-    "parameter": [
+    "resourceType": "Questionnaire",
+    "id": "patient-demographics",
+    "status": "draft",
+    "extension": [
       {
-        "name": "questionnaire",
-        "resource": {
-          "resourceType": "Questionnaire",
-          "id": "external-patient-demographics",
-          "status": "draft",
-          "subjectType": ["Patient"],
-          "item": [
-            {
-              "linkId": "patient-name",
-              "text": "Patient name",
-              "type": "string",
-              "initialExpression": "Patient.name"
-            },
-            {
-              "linkId": "patient-birthdate",
-              "text": "Birth date",
-              "type": "date",
-              "initialExpression": "Patient.birthDate"
-            },
-            {
-              "linkId": "patient-gender",
-              "text": "Gender",
-              "type": "string",
-              "initialExpression": "Patient.gender"
-            }
-          ]
-        }
+        "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
+        "extension": [
+          {
+            "url": "fhir",
+            "valueUrl": "https://hapi.fhir.org/baseR4"
+          }
+        ]
+      }
+    ],
+    "item": [
+      {
+        "linkId": "patient-name",
+        "text": "Patient name",
+        "type": "string",
+        "initialExpression": "Patient.name"
       },
       {
-        "name": "subject",
-        "valueReference": { "reference": "Patient/90288480" }
-      },
-      {
-        "name": "sourceUrl",
-        "valueString": "https://hapi.fhir.org/baseR4"
+        "linkId": "patient-birthdate",
+        "text": "Birth date",
+        "type": "date",
+        "initialExpression": "Patient.birthDate"
       }
     ]
   }
