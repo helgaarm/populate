@@ -56,11 +56,11 @@ example - populating Questionnaire from an external source:
               "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
               "extension": [
                 {
-                  "url": "patient",
+                  "url": "Patient",
                   "valueUrl": "https://hapi.fhir.org/baseR4"
                 },
                 {
-                  "url": "observation",
+                  "url": "Observation",
                   "valueUrl": "https://hapi.fhir.org/baseR4"
                 }
               ]
@@ -213,11 +213,11 @@ curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/123
         "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
         "extension": [
           {
-            "url": "patient",
+            "url": "Patient",
             "valueUrl": "https://hapi.fhir.org/baseR4"
           },
           {
-            "url": "observation",
+            "url": "Observation",
             "valueUrl": "https://hapi.fhir.org/baseR4"
           }
         ]
@@ -250,12 +250,12 @@ The data endpoints extension structure supports multiple, resource-type-specific
     "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
     "extension": [
       {
-        "url": "patient",
-        "valueUrl": "https://api.example.no/fhir/patient"
+        "url": "Patient",
+        "valueUrl": "https://patient-api.example.no/fhir"
       },
       {
-        "url": "observation",
-        "valueUrl": "https://api.example.no/fhir/observation"
+        "url": "Observation",
+        "valueUrl": "https://observation-api.example.no/fhir"
       }
     ]
   }

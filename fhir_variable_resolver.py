@@ -31,9 +31,6 @@ class FhirVariableResolver:
             return self.data_source.get_source_for_type(resource_type)
         return self.data_source
 
-    def set_variables(self, variables: Dict[str, Any]) -> None:
-        self.variables = variables
-
     def resolve_expression(
         self, expression: str, context: Optional[Dict[str, Any]] = None
     ) -> Optional[Tuple[Any, str]]:
@@ -58,7 +55,7 @@ class FhirVariableResolver:
         if not patient_id:
             return None
 
-        source = self._get_source_for_type("patient")
+        source = self._get_source_for_type("Patient")
         patient = source.get_patient(patient_id)
         if not patient:
             return None
@@ -79,7 +76,7 @@ class FhirVariableResolver:
         if not patient_id:
             return None
 
-        source = self._get_source_for_type("observation")
+        source = self._get_source_for_type("Observation")
         observation = source.get_latest_observation(patient_id, code)
         if not observation:
             return None
@@ -150,7 +147,7 @@ class FhirVariableResolver:
         if code_value.startswith("http://loinc.org|"):
             code_value = code_value.split("|", 1)[1]
 
-        source = self._get_source_for_type("observation")
+        source = self._get_source_for_type("Observation")
         observation = source.get_latest_observation(subject_id, code_value)
         if not observation:
             return None

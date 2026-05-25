@@ -148,7 +148,7 @@ class TypedDataSourceRouter:
         
         Args:
             default_source: Default data source for fallback.
-            endpoints: Dict mapping resource types (e.g., "patient", "observation") to URLs.
+            endpoints: Dict mapping FHIR resource type codes (e.g., "Patient", "Observation") to URLs.
             default_remote_url: Fallback remote URL if not in endpoints.
         """
         self.default_source = default_source
@@ -162,41 +162,42 @@ class TypedDataSourceRouter:
         Priority:
         1. Explicit endpoint for resource_type in extension
         2. Shared endpoint alias 'fhir'
-        3. First configured endpoint in the extension
-        4. Default remote URL (shared endpoint)
-        5. Default source (mock)
+        3. Default remote URL (shared endpoint)
+        4. Default source (mock)
         """
         if resource_type in self._source_cache:
             return self._source_cache[resource_type]
 
-        # Check for explicit endpoint for this resource type
-        if resource_type in self.endpoints:
-            url = self.endpoints[resource_type]
-            source = RemoteFhirDataSource(url)
+        endpoint = self._endpoint_for_resource_type(resource_type)
+        if endpoint:
+            source = RemoteFhirDataSource(endpoint)
             self._source_cache[resource_type] = source
             return source
 
-        # Allow a shared alias endpoint for all resource types
-        if "fhir" in self.endpoints:
-            source = RemoteFhirDataSource(self.endpoints["fhir"])
-            self._source_cache[resource_type] = source
-            return source
-
-        # Fallback to first available endpoint for older extension structures
-        if self.endpoints:
-            first_url = next(iter(self.endpoints.values()))
-            source = RemoteFhirDataSource(first_url)
-            self._source_cache[resource_type] = source
-            return source
-
-        # Fallback to default remote URL
         if self.default_remote_url:
             source = RemoteFhirDataSource(self.default_remote_url)
             self._source_cache[resource_type] = source
             return source
 
-        # Fallback to default source
         return self.default_source
+
+    def _endpoint_for_resource_type(self, resource_type: str) -> Optional[str]:
+        if resource_type in self.endpoints:
+            return self.endpoints[resource_type]
+
+        normalized_type = resource_type.lower()
+        for endpoint_type, url in self.endpoints.items():
+            if endpoint_type.lower() == normalized_type:
+                return url
+
+        if "fhir" in self.endpoints:
+            return self.endpoints["fhir"]
+
+        for endpoint_type, url in self.endpoints.items():
+            if endpoint_type.lower() == "fhir":
+                return url
+
+        return None
 
 
 class DataSourceRouter:

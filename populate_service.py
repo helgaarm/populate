@@ -60,26 +60,26 @@ class PopulateService:
     def extract_data_endpoints(questionnaire_data: Dict[str, Any]) -> Optional[Dict[str, str]]:
         """Extract resource-type-specific data source endpoint URLs from questionnaire extension.
         
-        Returns a dictionary mapping resource types to endpoint URLs.
+        Returns a dictionary mapping FHIR resource type codes to endpoint URLs.
         Looks for extensions with URL containing 'populate-data-endpoints' with nested extensions
-        where the url field indicates the resource type (e.g., "patient", "observation", "variable").
+        where the url field indicates the resource type (e.g., "Patient", "Observation").
         
         Example extension structure:
         {
             "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
             "extension": [
                 {
-                    "url": "patient",
+                    "url": "Patient",
                     "valueUrl": "https://api.example.org/fhir"
                 },
                 {
-                    "url": "observation",
+                    "url": "Observation",
                     "valueUrl": "https://api.example.org/fhir"
                 }
             ]
         }
         
-        Returns: {"patient": "https://...", "observation": "https://..."} or None if not found
+        Returns: {"Patient": "https://...", "Observation": "https://..."} or None if not found
         """
         endpoints: Dict[str, str] = {}
         
