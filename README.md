@@ -56,7 +56,11 @@ example - populating Questionnaire from an external source:
               "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
               "extension": [
                 {
-                  "url": "fhir",
+                  "url": "patient",
+                  "valueUrl": "https://hapi.fhir.org/baseR4"
+                },
+                {
+                  "url": "observation",
                   "valueUrl": "https://hapi.fhir.org/baseR4"
                 }
               ]
@@ -209,7 +213,11 @@ curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/123
         "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
         "extension": [
           {
-            "url": "fhir",
+            "url": "patient",
+            "valueUrl": "https://hapi.fhir.org/baseR4"
+          },
+          {
+            "url": "observation",
             "valueUrl": "https://hapi.fhir.org/baseR4"
           }
         ]
@@ -234,7 +242,7 @@ curl -X POST "http://localhost:8000/Questionnaire/\$populate?subject=Patient/123
 
 The `subject` query parameter is required when expressions like `Patient.name` need to be evaluated. See [Subject in query parameters](#subject-in-query-parameters) for more details on passing the subject.
 
-The data endpoints extension structure supports multiple endpoints:
+The data endpoints extension structure supports multiple, resource-type-specific endpoints:
 
 ```json
 "extension": [
@@ -242,19 +250,19 @@ The data endpoints extension structure supports multiple endpoints:
     "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
     "extension": [
       {
-        "url": "primaryObservation",
-        "valueUrl": "https://api.example.no/fhir/dhg/primary-observation"
+        "url": "patient",
+        "valueUrl": "https://api.example.no/fhir/patient"
       },
       {
-        "url": "secondaryObservation",
-        "valueUrl": "https://api.example.no/fhir/dhg/secondary-observation"
+        "url": "observation",
+        "valueUrl": "https://api.example.no/fhir/observation"
       }
     ]
   }
 ]
 ```
 
-The service uses the first `valueUrl` found in the nested extensions. All endpoints must return a FHIR-compliant response.
+The service looks up the endpoint based on the requested resource type. A shared alias endpoint may also be used with `"url": "fhir"`, in which case the same URL is used for all resource types.
 
 ## External FHIR server examples
 

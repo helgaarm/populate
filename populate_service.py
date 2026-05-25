@@ -57,23 +57,32 @@ class PopulateService:
         return variables
 
     @staticmethod
-    def extract_data_endpoints(questionnaire_data: Dict[str, Any]) -> Optional[str]:
-        """Extract data source endpoint URL from questionnaire extension.
+    def extract_data_endpoints(questionnaire_data: Dict[str, Any]) -> Optional[Dict[str, str]]:
+        """Extract resource-type-specific data source endpoint URLs from questionnaire extension.
         
-        Looks for extensions with URL containing 'populate-data-endpoints' and returns
-        the first nested extension with a valueUrl or the first available endpoint URL.
+        Returns a dictionary mapping resource types to endpoint URLs.
+        Looks for extensions with URL containing 'populate-data-endpoints' with nested extensions
+        where the url field indicates the resource type (e.g., "patient", "observation", "variable").
         
         Example extension structure:
         {
             "url": "http://example.org/fhir/StructureDefinition/populate-data-endpoints",
             "extension": [
                 {
-                    "url": "terminObservation",
-                    "valueUrl": "https://api.example.no/fhir/dhg/termin-observation"
+                    "url": "patient",
+                    "valueUrl": "https://api.example.org/fhir"
+                },
+                {
+                    "url": "observation",
+                    "valueUrl": "https://api.example.org/fhir"
                 }
             ]
         }
+        
+        Returns: {"patient": "https://...", "observation": "https://..."} or None if not found
         """
+        endpoints: Dict[str, str] = {}
+        
         for extension in questionnaire_data.get("extension", []):
             if not isinstance(extension, dict):
                 continue
@@ -82,16 +91,17 @@ class PopulateService:
             if "populate-data-endpoints" not in url:
                 continue
 
-            # Look for nested extensions with valueUrl
+            # Look for nested extensions with resource type and valueUrl
             nested_extensions = extension.get("extension", [])
             if isinstance(nested_extensions, list):
                 for nested_ext in nested_extensions:
                     if isinstance(nested_ext, dict):
+                        resource_type = nested_ext.get("url")
                         value_url = nested_ext.get("valueUrl")
-                        if isinstance(value_url, str) and value_url.strip():
-                            return value_url
+                        if isinstance(resource_type, str) and isinstance(value_url, str) and value_url.strip():
+                            endpoints[resource_type] = value_url
 
-        return None
+        return endpoints if endpoints else None
 
     @staticmethod
     def extract_initial_expressions(items: List[Dict[str, Any]]) -> Dict[str, str]:

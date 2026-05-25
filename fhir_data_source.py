@@ -135,6 +135,70 @@ class RemoteFhirDataSource:
         return observation.get("value")
 
 
+class TypedDataSourceRouter:
+    """Routes FHIR requests to resource-type-specific data sources."""
+
+    def __init__(
+        self,
+        default_source: FhirDataSource,
+        endpoints: Optional[Dict[str, str]] = None,
+        default_remote_url: Optional[str] = None,
+    ) -> None:
+        """Initialize router with optional resource-type-specific endpoints.
+        
+        Args:
+            default_source: Default data source for fallback.
+            endpoints: Dict mapping resource types (e.g., "patient", "observation") to URLs.
+            default_remote_url: Fallback remote URL if not in endpoints.
+        """
+        self.default_source = default_source
+        self.endpoints = endpoints or {}
+        self.default_remote_url = default_remote_url
+        self._source_cache: Dict[str, FhirDataSource] = {}
+
+    def get_source_for_type(self, resource_type: str) -> FhirDataSource:
+        """Get the appropriate data source for a resource type.
+        
+        Priority:
+        1. Explicit endpoint for resource_type in extension
+        2. Shared endpoint alias 'fhir'
+        3. First configured endpoint in the extension
+        4. Default remote URL (shared endpoint)
+        5. Default source (mock)
+        """
+        if resource_type in self._source_cache:
+            return self._source_cache[resource_type]
+
+        # Check for explicit endpoint for this resource type
+        if resource_type in self.endpoints:
+            url = self.endpoints[resource_type]
+            source = RemoteFhirDataSource(url)
+            self._source_cache[resource_type] = source
+            return source
+
+        # Allow a shared alias endpoint for all resource types
+        if "fhir" in self.endpoints:
+            source = RemoteFhirDataSource(self.endpoints["fhir"])
+            self._source_cache[resource_type] = source
+            return source
+
+        # Fallback to first available endpoint for older extension structures
+        if self.endpoints:
+            first_url = next(iter(self.endpoints.values()))
+            source = RemoteFhirDataSource(first_url)
+            self._source_cache[resource_type] = source
+            return source
+
+        # Fallback to default remote URL
+        if self.default_remote_url:
+            source = RemoteFhirDataSource(self.default_remote_url)
+            self._source_cache[resource_type] = source
+            return source
+
+        # Fallback to default source
+        return self.default_source
+
+
 class DataSourceRouter:
     """Route FHIR requests to the configured data source backend."""
 
@@ -151,17 +215,33 @@ class DataSourceRouter:
         parameters: Dict[str, Any],
         query_params: Mapping[str, str],
         questionnaire_data: Optional[Dict[str, Any]] = None,
-    ) -> FhirDataSource:
+    ) -> FhirDataSource | TypedDataSourceRouter:
         """Select data source based on questionnaire extension, parameters, or query params.
         
+        If questionnaire has resource-type-specific endpoints, returns a TypedDataSourceRouter.
+        Otherwise returns a single FhirDataSource for backward compatibility.
+        
         Priority order:
-        1. Data endpoints extension in questionnaire
+        1. Data endpoints extension in questionnaire (with resource type support)
         2. sourceUrl parameter or query param
         3. source parameter or query param (e.g., 'remote', 'mock')
         4. REMOTE_FHIR_BASE_URL environment variable
         5. Default source
         """
-        source_hint = self._get_source_hint(parameters, query_params, questionnaire_data)
+        # Check questionnaire for typed data endpoints extension
+        if questionnaire_data:
+            from populate_service import PopulateService
+            endpoints = PopulateService.extract_data_endpoints(questionnaire_data)
+            if endpoints:
+                # Return a typed router for resource-type-specific sources
+                return TypedDataSourceRouter(
+                    default_source=self.default_source,
+                    endpoints=endpoints,
+                    default_remote_url=self.default_remote_url,
+                )
+
+        # Fallback to old behavior for single URL selection
+        source_hint = self._get_source_hint(parameters, query_params)
         if source_hint is None:
             return self.default_source
 
@@ -181,24 +261,8 @@ class DataSourceRouter:
         self,
         parameters: Dict[str, Any],
         query_params: Mapping[str, str],
-        questionnaire_data: Optional[Dict[str, Any]] = None,
     ) -> Optional[str]:
-        """Get source hint from questionnaire, parameters, or query params.
-        
-        Checks in order:
-        1. Data endpoints extension in questionnaire
-        2. sourceUrl parameter
-        3. sourceUrl query param
-        4. source parameter
-        5. source query param
-        """
-        # Check questionnaire for data endpoints extension
-        if questionnaire_data:
-            from populate_service import PopulateService
-            endpoint_url = PopulateService.extract_data_endpoints(questionnaire_data)
-            if endpoint_url:
-                return endpoint_url
-
+        """Get source hint from parameters or query params."""
         source_hint = parameters.get("sourceUrl")
         if isinstance(source_hint, str) and source_hint.strip():
             return source_hint

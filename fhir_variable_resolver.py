@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 from urllib.parse import parse_qs
 
 from fhir_data_source import FhirDataSource
@@ -10,9 +10,26 @@ from fhir_data_source import FhirDataSource
 class FhirVariableResolver:
     """Resolve patient resources, observation queries, and SDC variables."""
 
-    def __init__(self, data_source: FhirDataSource) -> None:
-        self.patient_data = data_source
+    def __init__(self, data_source: Union[FhirDataSource, Any]) -> None:
+        # Accept Any type to avoid circular imports with TypedDataSourceRouter
+        self.data_source = data_source
         self.variables: Dict[str, Any] = {}
+
+    def set_variables(self, variables: Dict[str, Any]) -> None:
+        self.variables = variables
+
+    def _get_source_for_type(self, resource_type: str) -> FhirDataSource:
+        """Get the appropriate data source for a resource type.
+        
+        If data_source is a TypedDataSourceRouter, routes to the appropriate endpoint.
+        Otherwise returns the single data source.
+        """
+        # Import here to avoid circular imports
+        from fhir_data_source import TypedDataSourceRouter
+        
+        if isinstance(self.data_source, TypedDataSourceRouter):
+            return self.data_source.get_source_for_type(resource_type)
+        return self.data_source
 
     def set_variables(self, variables: Dict[str, Any]) -> None:
         self.variables = variables
@@ -41,7 +58,8 @@ class FhirVariableResolver:
         if not patient_id:
             return None
 
-        patient = self.patient_data.get_patient(patient_id)
+        source = self._get_source_for_type("patient")
+        patient = source.get_patient(patient_id)
         if not patient:
             return None
 
@@ -61,7 +79,8 @@ class FhirVariableResolver:
         if not patient_id:
             return None
 
-        observation = self.patient_data.get_latest_observation(patient_id, code)
+        source = self._get_source_for_type("observation")
+        observation = source.get_latest_observation(patient_id, code)
         if not observation:
             return None
 
@@ -131,7 +150,8 @@ class FhirVariableResolver:
         if code_value.startswith("http://loinc.org|"):
             code_value = code_value.split("|", 1)[1]
 
-        observation = self.patient_data.get_latest_observation(subject_id, code_value)
+        source = self._get_source_for_type("observation")
+        observation = source.get_latest_observation(subject_id, code_value)
         if not observation:
             return None
 

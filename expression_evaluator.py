@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from fhirpathpy import evaluate as fhirpath_evaluate
 
-from fhir_data_source import FhirDataSource
+from fhir_data_source import FhirDataSource, TypedDataSourceRouter
 from fhir_variable_resolver import FhirVariableResolver
 
 
 class ExpressionEvaluator:
     """Evaluates FHIR initialExpression values using a FHIRPath engine."""
 
-    def __init__(self, data_source: FhirDataSource) -> None:
+    def __init__(self, data_source: Union[FhirDataSource, TypedDataSourceRouter]) -> None:
         self.resolver = FhirVariableResolver(data_source)
 
     def set_variables(self, variables: Dict[str, Any]) -> None:
@@ -76,7 +76,7 @@ class ExpressionEvaluator:
         return f"{given_text} {family}".strip() or None
 
 
-def create_evaluator(data_source: FhirDataSource) -> ExpressionEvaluator:
+def create_evaluator(data_source: Union[FhirDataSource, TypedDataSourceRouter]) -> ExpressionEvaluator:
     """Factory to create an expression evaluator."""
     return ExpressionEvaluator(data_source)
 
